@@ -1,0 +1,53 @@
+name: monthly-review
+
+on:
+  schedule:
+    - cron: '0 1 1 * *'   # 每月 1 号 01:00 UTC = 北京时间 09:00
+  workflow_dispatch: {}   # 支持手动触发
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Clone output repo
+        env:
+          TOKEN: ${{ secrets.OUTPUT_REPO_TOKEN }}
+        run: |
+          git clone "https://x-access-token:${TOKEN}@github.com/lalalalayla/layla-research-output.git" output
+          git -C output config user.name "github-actions[bot]"
+          git -C output config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Generate monthly review draft
+        env:
+          RESEARCH_OUTPUT_ROOT: ${{ github.workspace }}/output
+        run: python3 scripts/build_monthly_review.py
+
+      - name: Commit and push outputs
+        env:
+          TOKEN: ${{ secrets.OUTPUT_REPO_TOKEN }}
+        run: |
+          cd output
+          git add -A
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -m "chore: monthly review $(date +%Y-%m)" || true
+          git push "https://x-access-token:${TOKEN}@github.com/lalalalayla/layla-research-output.git" HEAD:main
+
+      - name: Create notification issue
+        env:
+          GH_TOKEN: ${{ secrets.OUTPUT_REPO_TOKEN }}
+        run: |
+          REPORT=$(ls output/04_monthly_reviews_月度复盘/*_研究简报.md | tail -n 1)
+          gh issue create --repo lalalalayla/layla-research-output \
+            --title "月度研究简报 $(date +%Y-%m)" --body-file "$REPORT"

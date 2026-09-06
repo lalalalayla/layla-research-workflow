@@ -1,0 +1,53 @@
+name: weekly-candidate-pool
+
+on:
+  schedule:
+    - cron: '0 1 * * 1'   # 周一 01:00 UTC = 北京时间周一 09:00
+  workflow_dispatch: {}   # 支持手动触发
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Clone output repo
+        env:
+          TOKEN: ${{ secrets.OUTPUT_REPO_TOKEN }}
+        run: |
+          git clone "https://x-access-token:${TOKEN}@github.com/lalalalayla/layla-research-output.git" output
+          git -C output config user.name "github-actions[bot]"
+          git -C output config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Generate weekly candidate pool
+        env:
+          RESEARCH_OUTPUT_ROOT: ${{ github.workspace }}/output
+        run: python3 scripts/build_weekly_pool.py
+
+      - name: Commit and push outputs
+        env:
+          TOKEN: ${{ secrets.OUTPUT_REPO_TOKEN }}
+        run: |
+          cd output
+          git add -A
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -m "chore: weekly candidate pool $(date +%Y-W%V)" || true
+          git push "https://x-access-token:${TOKEN}@github.com/lalalalayla/layla-research-output.git" HEAD:main
+
+      - name: Create notification issue
+        env:
+          GH_TOKEN: ${{ secrets.OUTPUT_REPO_TOKEN }}
+        run: |
+          SUMMARY=$(ls output/00_inbox_临时收件箱/候选池摘要_*.md | tail -n 1)
+          gh issue create --repo lalalalayla/layla-research-output \
+            --title "本周论文候选池 $(date +%Y-W%V)" --body-file "$SUMMARY"

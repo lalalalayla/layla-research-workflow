@@ -1,0 +1,17 @@
+.DS_Store
+.env
+__pycache__/
+*.pyc
+output/
+.state/
+
+# 防止未设置 RESEARCH_OUTPUT_ROOT 时误提交本地产物
+00_inbox_临时收件箱/
+01_papers_pdf_论文原文/
+02_paper_cards_论文卡片/
+03_research_topics_研究主题/
+04_monthly_reviews_月度复盘/
+05_application_materials_申请材料/
+06_datasets_code_数据与代码/
+99_archive_归档/
+CURRENT_STATE.md
