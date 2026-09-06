@@ -257,7 +257,12 @@ def _imap_date(d: date) -> str:
 
 
 def _find_all_mail(mail):
-    """在 Gmail 中定位 All Mail 文件夹（兼容中英文界面），找不到返回 None。"""
+    """在 Gmail 中定位 All Mail 文件夹。
+
+    优先用 LIST 响应里的 \\All 标记（与界面语言、UTF-7 编码无关），
+    找不到时再按中英文文件夹名猜测。找不到返回 None。
+    """
+    names = []
     try:
         typ, data = mail.list()
         if typ != "OK":
@@ -268,11 +273,15 @@ def _find_all_mail(mail):
             if not m:
                 continue
             name = m.group(1)
-            lower = name.lower()
-            if lower.startswith("[gmail]") and ("all mail" in lower or "所有邮件" in name):
+            if "\\All" in line:
                 return name
+            names.append(name)
     except Exception:
         return None
+    for name in names:
+        lower = name.lower()
+        if lower.startswith("[gmail]") and ("all mail" in lower or "所有邮件" in name):
+            return name
     return None
 
 
